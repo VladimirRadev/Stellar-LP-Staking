@@ -88,7 +88,7 @@ export function FarmPanel({ onGoToPool }: { onGoToPool: () => void }) {
                 pending={user.pending}
                 blockTimestamp={user.blockTimestamp}
                 perSecond={myPerSecond}
-                digits={4}
+                digits={5}
               />
             ) : (
               '—'

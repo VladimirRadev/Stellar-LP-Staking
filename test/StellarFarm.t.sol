@@ -10,7 +10,7 @@ import {IVladToken} from "../src/interfaces/IVladToken.sol";
 import {MockVlad} from "./mocks/MockVlad.sol";
 
 contract StellarFarmTest is Test {
-    uint256 internal constant RATE = 1e16; // 0.01 VLAD per second, same as the deploy script
+    uint256 internal constant RATE = 1e16; // 0.01 VLAD per second: round numbers for exact assertions
 
     MockVlad internal vlad;
     StellarPool internal pool;

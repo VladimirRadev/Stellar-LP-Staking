@@ -139,7 +139,7 @@ function MarketCard() {
         />
         <MarketStat
           label="Farm emits"
-          value={p.rewardPerSecond !== undefined ? formatToken(p.rewardPerSecond * SECONDS_PER_DAY, 18, 0) : '—'}
+          value={p.rewardPerSecond !== undefined ? formatToken(p.rewardPerSecond * SECONDS_PER_DAY, 18, 2) : '—'}
           unit="VLAD/day"
           loading={p.isLoading}
         />

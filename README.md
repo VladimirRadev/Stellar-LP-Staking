@@ -126,16 +126,26 @@ forge build
 forge test
 ```
 
-Deploy (needs the VLAD admin key, ≥ 200 VLAD and ≥ 0.002 ETH plus gas on the deployer):
+Deploy (needs the VLAD admin key, at least 2000 VLAD, and 0.02 ETH plus gas on the deployer):
 
 ```bash
-export PRIVATE_KEY=...            # never commit; .env* is git-ignored
-export VLAD_TOKEN=0x...           # VladToken address from Stellar-Faucet
-forge script script/Deploy.s.sol --rpc-url "$SEPOLIA_RPC_URL" --broadcast --verify
+set -a; source /path/to/deployer.env; set +a   # PRIVATE_KEY lives outside the repo; .env* is git-ignored
+export VLAD_TOKEN=0x49ba857d553ef219B144b200F41acaf8CB6768E9
+forge script script/Deploy.s.sol --rpc-url https://ethereum-sepolia-rpc.publicnode.com \
+  --broadcast --slow --skip-simulation -vvv
 ```
 
-The script deploys the pool, deploys the farm at 0.01 VLAD/s, grants the farm `MINTER_ROLE`, and seeds the pool
-with 0.002 ETH + 200 VLAD (opening price 1 ETH = 100,000 VLAD).
+The script sends exactly five transactions: deploy the pool, deploy the farm at 0.0001 VLAD/s (8.64 VLAD/day),
+grant the farm `MINTER_ROLE`, approve 2000 VLAD, and seed the pool with 0.02 ETH + 2000 VLAD
+(opening price 1 ETH = 100,000 VLAD).
+
+- `--skip-simulation`: Sepolia's current fork prices contract creation far above forge's local simulation, so the
+  gas limits are taken from the Sepolia node instead.
+- `--slow`: the deployer is an EIP-7702 delegated account and nodes accept only one in-flight transaction for it.
+  If a transaction is rejected with "in-flight transaction limit reached", wait ~20 s and rerun with `--resume`.
+
+**Farm economics.** 0.0001 VLAD/s is 3,153.6 VLAD per year. The seed pool is worth 2 × 2000 = 4,000 VLAD, so while
+all seed sLP is staked the estimated APR is 3,153.6 / 4,000 ≈ 79%. The APR falls as more liquidity is staked.
 
 ## Part of the Stellar suite
 
