@@ -1,5 +1,7 @@
 # Stellar Swap & LP Staking — ETH/VLAD AMM + farm (Sepolia)
 
+**Live app:** https://vladimirradev.github.io/Stellar-LP-Staking/
+
 A constant-product ETH/VLAD exchange and a liquidity-mining farm on Ethereum Sepolia.
 Provide ETH + VLAD to the pool, receive **sLP** (the pool's own LP token), stake sLP in the farm and earn
 newly minted **$VLAD** every second.
@@ -76,6 +78,36 @@ pending            = user.amount * accRewardPerShare / ACC - user.rewardDebt
   spot price that one large swap can move within a single block. This is acceptable for a testnet demo only;
   a production lender would use a TWAP or an external oracle.
 - **Assumptions.** VLAD is a plain ERC-20 (no fee-on-transfer, no hooks). Testnet portfolio code, not audited.
+
+## Web app
+
+**Live:** https://vladimirradev.github.io/Stellar-LP-Staking/
+
+A React 19 + wagmi 3 + viem single-page app in `web/`, built on the shared Stellar scaffold
+(`web/src/shell/` is byte-identical across the five Stellar repos). MetaMask only, Sepolia only, no backend.
+
+| Tab | What it does |
+|---|---|
+| **Swap** | ETH → VLAD or VLAD → ETH. The quote is computed in the browser from `getReserves()` with the same formula as `getAmountOut`. Shows rate, price impact, LP fee, slippage tolerance (default 0.5%) and the resulting `minOut`. VLAD → ETH runs an Approve step first. After confirmation it shows the amounts from the `Swap` event and the new reserves from the `Sync` event. |
+| **Pool** | Reserves, spot price both ways, TVL in ETH-equivalent, sLP supply, your sLP and pool share. Add liquidity: enter ETH, `quoteAddLiquidity` returns the VLAD needed and the sLP out; the app approves VLAD (+0.5% buffer) and calls `addLiquidity` with `minLp` = 99.5%. Remove liquidity: enter sLP, the app shows the pro-rata ETH/VLAD and sends 0.5% slippage minimums. |
+| **Farm** | Your stake, pending VLAD (refetched every 8 s and interpolated every 100 ms from `rewardPerSecond` and your share), total staked, reward rate per day and an estimated APR. Approve sLP → Deposit, Withdraw, Harvest, and Emergency withdraw behind a confirmation. |
+
+Custom errors (`Slippage`, `InsufficientLiquidity`, `ZeroAmount`, `InsufficientStake`, ...) are decoded into readable
+sentences before the wallet opens, because every transaction is simulated first.
+
+Run it locally (Node 22.12+):
+
+```bash
+forge build                 # the ABIs come from out/
+cd web
+npm ci
+npm run sync-abi            # copies StellarPool, StellarFarm and IVladToken ABIs into src/abi/
+npm run dev
+```
+
+Contract addresses live in `web/src/config/addresses.ts`. While they are the zero address the page shows a
+"not deployed yet" banner and switches on-chain reads off. GitHub Pages deploys `web/` on every push to `main`
+(`.github/workflows/pages.yml`).
 
 ## Deployed addresses (Sepolia)
 
