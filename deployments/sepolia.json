@@ -1,0 +1,72 @@
+{
+  "chainId": 11155111,
+  "deployer": "0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4",
+  "contracts": {
+    "VladToken": {
+      "address": "0x49ba857d553ef219B144b200F41acaf8CB6768E9",
+      "deployedBy": "Stellar-Faucet",
+      "txHash": "0x3b24505f6310f9ee43a43465e923814519b6e66197674b612910591aa0f9f5d3"
+    },
+    "StellarPool": {
+      "address": "0xAC08AA11850cf015160A93DAD746CA480407b7Ae",
+      "txHash": "0x004b3b127807d35cfa28a817fccf409c82c1461095bb44809ef5de42055e4f3e",
+      "block": 11870455,
+      "gasUsed": 9143631,
+      "constructorArgs": {
+        "vlad": "0x49ba857d553ef219B144b200F41acaf8CB6768E9"
+      }
+    },
+    "StellarFarm": {
+      "address": "0x7b4B7137992625F98d4A3436D52366FfA84EC3DE",
+      "txHash": "0xf8bc1221ddcbd823219c3992f631d9339c24287860046cd75e439a9c7780f6b8",
+      "block": 11870456,
+      "gasUsed": 5138599,
+      "constructorArgs": {
+        "lpToken": "0xAC08AA11850cf015160A93DAD746CA480407b7Ae",
+        "vlad": "0x49ba857d553ef219B144b200F41acaf8CB6768E9",
+        "rewardPerSecond": "100000000000000"
+      }
+    }
+  },
+  "transactions": {
+    "grantMinterRoleToFarm": {
+      "txHash": "0xf23b75b37aeed36556217120b9fad675046724be820370cc31bf0537fec5d613",
+      "block": 11870457,
+      "gasUsed": 133532,
+      "role": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"
+    },
+    "approveSeedVlad": {
+      "txHash": "0x7503b94c16d70e8d5cd463d76374128bc87229efe515f060d3de18b3a3138c00",
+      "block": 11870458,
+      "gasUsed": 128328,
+      "amount": "2000000000000000000000"
+    },
+    "seedLiquidity": {
+      "txHash": "0x61c19ab1f9cba45c8e96c29b7bf7b63ed7956a0fcf6713f70b89e1d2cd69547d",
+      "block": 11870459,
+      "gasUsed": 824042,
+      "ethIn": "20000000000000000",
+      "vladIn": "2000000000000000000000",
+      "openingPrice": "1 ETH = 100,000 VLAD"
+    }
+  },
+  "verified": {
+    "StellarPool": {
+      "sourcify": "exact_match",
+      "blockscout": "verified (is_fully_verified, imported via eth-bytecode-db from the Sourcify source)"
+    },
+    "StellarFarm": {
+      "sourcify": "exact_match",
+      "blockscout": "verified (is_fully_verified)"
+    }
+  },
+  "cost": {
+    "effectiveGasPriceWei": [
+      10000013
+    ],
+    "totalGasUsed": 15368132,
+    "totalWei": "153681519785716",
+    "ethDepositedAsLiquidity": "20000000000000000"
+  },
+  "notes": "Deployed with forge script --broadcast --slow --skip-simulation (Sepolia prices contract creation ~7x above the local Cancun simulation; the deployer is an EIP-7702 delegated account)."
+}

@@ -109,13 +109,17 @@ Contract addresses live in `web/src/config/addresses.ts`. While they are the zer
 "not deployed yet" banner and switches on-chain reads off. GitHub Pages deploys `web/` on every push to `main`
 (`.github/workflows/pages.yml`).
 
-## Deployed addresses (Sepolia)
+## Deployed addresses (Sepolia, chain id 11155111)
 
-| Contract | Address |
-|---|---|
-| VladToken ($VLAD) | TODO |
-| StellarPool (sLP) | TODO |
-| StellarFarm | TODO |
+| Contract | Address | Deploy tx |
+|---|---|---|
+| VladToken ($VLAD) | [`0x49ba857d553ef219B144b200F41acaf8CB6768E9`](https://eth-sepolia.blockscout.com/address/0x49ba857d553ef219B144b200F41acaf8CB6768E9) | [`0x3b24505f…f9f5d3`](https://eth-sepolia.blockscout.com/tx/0x3b24505f6310f9ee43a43465e923814519b6e66197674b612910591aa0f9f5d3) (Stellar-Faucet) |
+| StellarPool (sLP) | [`0xAC08AA11850cf015160A93DAD746CA480407b7Ae`](https://eth-sepolia.blockscout.com/address/0xAC08AA11850cf015160A93DAD746CA480407b7Ae) | [`0x004b3b12…5e4f3e`](https://eth-sepolia.blockscout.com/tx/0x004b3b127807d35cfa28a817fccf409c82c1461095bb44809ef5de42055e4f3e) |
+| StellarFarm | [`0x7b4B7137992625F98d4A3436D52366FfA84EC3DE`](https://eth-sepolia.blockscout.com/address/0x7b4B7137992625F98d4A3436D52366FfA84EC3DE) | [`0xf8bc1221…80f6b8`](https://eth-sepolia.blockscout.com/tx/0xf8bc1221ddcbd823219c3992f631d9339c24287860046cd75e439a9c7780f6b8) |
+
+`MINTER_ROLE` was granted to the farm in tx [`0xf23b75b3…c5d613`](https://eth-sepolia.blockscout.com/tx/0xf23b75b37aeed36556217120b9fad675046724be820370cc31bf0537fec5d613). The pool was seeded with 0.02 ETH + 2000 VLAD
+(opening price 1 ETH = 100,000 VLAD) in tx [`0x61c19ab1…69547d`](https://eth-sepolia.blockscout.com/tx/0x61c19ab1f9cba45c8e96c29b7bf7b63ed7956a0fcf6713f70b89e1d2cd69547d). Both contracts are verified on Sourcify (exact match)
+and Blockscout. Blocks, gas and costs are in [`deployments/sepolia.json`](deployments/sepolia.json).
 
 ## Development
 

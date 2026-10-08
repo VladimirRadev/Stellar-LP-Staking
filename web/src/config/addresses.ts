@@ -4,13 +4,13 @@ import type { Address } from 'viem'
 export const CHAIN_ID = 11155111 as const
 
 /**
- * Deployed contract addresses on Sepolia.
+ * Deployed contract addresses on Sepolia (source of truth: deployments/sepolia.json).
  * The zero address is a placeholder: the UI shows a "not deployed yet" state for it.
  */
 export const addresses = {
-  vladToken: '0x0000000000000000000000000000000000000000',
-  pool: '0x0000000000000000000000000000000000000000',
-  farm: '0x0000000000000000000000000000000000000000',
+  vladToken: '0x49ba857d553ef219B144b200F41acaf8CB6768E9',
+  pool: '0xAC08AA11850cf015160A93DAD746CA480407b7Ae',
+  farm: '0x7b4B7137992625F98d4A3436D52366FfA84EC3DE',
 } as const satisfies Record<string, Address>
 
 /** Contracts listed in the footer, with Blockscout links. */
