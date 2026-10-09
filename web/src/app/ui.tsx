@@ -133,7 +133,7 @@ export function DetailRow({ label, children, tone }: { label: ReactNode; childre
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
       <span className="shrink-0 text-muted">{label}</span>
-      <span className={`min-w-0 truncate text-right font-mono tabular-nums ${color}`}>{children}</span>
+      <span className={`min-w-0 break-words text-right font-mono tabular-nums ${color}`}>{children}</span>
     </div>
   )
 }

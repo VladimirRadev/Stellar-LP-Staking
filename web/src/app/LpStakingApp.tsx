@@ -120,7 +120,7 @@ function MarketCard() {
           {p.isLoading ? (
             <span className="skeleton h-8 w-48" />
           ) : (
-            <p className="truncate font-mono text-2xl font-semibold tabular-nums sm:text-3xl">
+            <p className="break-words font-mono text-xl font-semibold tabular-nums sm:text-3xl">
               1 ETH = {formatPrice(spot)} <span className="text-base text-muted">VLAD</span>
             </p>
           )}
@@ -132,7 +132,7 @@ function MarketCard() {
         <MarketStat label="ETH reserve" value={formatToken(p.reserveEth, 18, 6)} unit="ETH" loading={p.isLoading} />
         <MarketStat label="VLAD reserve" value={formatToken(p.reserveVlad)} unit="VLAD" loading={p.isLoading} />
         <MarketStat
-          label="TVL (ETH-eq.)"
+          label={'TVL (ETH\u2011eq.)'}
           value={p.reserveEth !== undefined ? formatToken(2n * p.reserveEth, 18, 6) : '—'}
           unit="ETH"
           loading={p.isLoading}
@@ -152,12 +152,12 @@ function MarketCard() {
 function MarketStat({ label, value, unit, loading }: { label: string; value: string; unit: string; loading: boolean }) {
   return (
     <div className="min-w-0 rounded-2xl border border-border/80 bg-bg/40 p-3.5">
-      <dt className="eyebrow truncate">{label}</dt>
-      <dd className="mt-1.5 flex min-w-0 items-baseline gap-1.5">
+      <dt className="eyebrow break-words">{label}</dt>
+      <dd className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5">
         {loading ? (
           <span className="skeleton h-6 w-20" />
         ) : (
-          <span className="truncate font-mono text-lg font-semibold tabular-nums">{value}</span>
+          <span className="max-w-full truncate font-mono text-base font-semibold tabular-nums sm:text-lg">{value}</span>
         )}
         <span className="shrink-0 text-xs text-muted">{unit}</span>
       </dd>
