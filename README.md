@@ -151,6 +151,22 @@ grant the farm `MINTER_ROLE`, approve 2000 VLAD, and seed the pool with 0.02 ETH
 **Farm economics.** 0.0001 VLAD/s is 3,153.6 VLAD per year. The seed pool is worth 2 × 2000 = 4,000 VLAD, so while
 all seed sLP is staked the estimated APR is 3,153.6 / 4,000 ≈ 79%. The APR falls as more liquidity is staked.
 
+## Smoke tests (2026-10-09)
+
+End-to-end run on Ethereum Sepolia on 2026-10-09 from the deployer `0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4` (an EIP-7702 delegated EOA), with `smoke.sh` (19 steps across the whole suite, one transaction at a time, each waiting for its receipt). After every transaction the script compared balances, reserves and events at the transaction's block with the block before it; "ok" means every such assertion passed. Step numbers are the suite-wide order. Rows for this repo (StellarPool is also the sLP token):
+
+| Step | Function | Result | Tx (Blockscout) | Gas used |
+|---|---|---|---|---|
+| 2 | `pool.swapEthForVlad(minOut)` | ok | [`0x2d21eceb…5741e1`](https://eth-sepolia.blockscout.com/tx/0x2d21eceb061692b133ed41e1aaecb33740c01a24c3895e3db24cbb9e375741e1) | 95904 |
+| 3 | `pool.approve(farm, 5e18)` | ok | [`0x357466f9…6ac814`](https://eth-sepolia.blockscout.com/tx/0x357466f9c16c8e5fa048e1e33198a2aaca4c43a89fb50c1145306d86526ac814) | 128375 |
+| 4 | `farm.deposit(5e18)` | ok | [`0x9d69cd69…f9b7e8`](https://eth-sepolia.blockscout.com/tx/0x9d69cd69a5218fb7c0c3596a2a4bf7eea65eb9e88e97940683bb0da997f9b7e8) | 387313 |
+| 5 | `farm.harvest()` | ok | [`0xa9023703…61c306`](https://eth-sepolia.blockscout.com/tx/0xa90237034f2f9be344f0e08722cab7edcec1155c45ec3339163118582061c306) | 292226 |
+| 6 | `farm.withdraw(4e18)` | ok | [`0x65a69020…fe1bf0`](https://eth-sepolia.blockscout.com/tx/0x65a69020ca38ef4035a753a4074b6d33188ec8812ae8843b2746b88894fe1bf0) | 149592 |
+
+- Step 2 swap: 0.0001 ETH -> 9.920546077802156251 VLAD (minOut 9.821340617024134688); price 100000 -> 99008.928055830738494975 VLAD/ETH
+- Step 5 harvest: 0.018 VLAD after ~165s on a 5 sLP stake (rewardPerSecond 0.0001 VLAD/s, share 100.0000%)
+- Step 6 unstake: withdrew 4 sLP, paid 0.0024 VLAD pending; 1 sLP left staked; farm.totalStaked = 1 sLP
+
 ## Part of the Stellar suite
 
 | Repo | Site |
