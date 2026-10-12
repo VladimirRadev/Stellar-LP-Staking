@@ -23,7 +23,6 @@ import {
   toFloat,
   toInputString,
   usePoolState,
-  useMessageAtClick,
   useSettled,
   useUserState,
 } from './lib'
@@ -81,10 +80,8 @@ export function SwapPanel() {
   const canSwap = DEPLOYED && hasReserves && amountIn > 0n && !!amountOut && amountOut > 0n && !exceeds
   const impactTone = impact === undefined ? undefined : impact >= 15 ? 'danger' : impact >= 5 ? 'warn' : undefined
   // ETH amounts with 6 decimals, VLAD amounts with 4.
-  const swapMessage = useMessageAtClick(
-    () =>
-      `Swapped ${formatToken(amountIn, 18, ethIn ? 6 : 4)} ${inSymbol} for ≈ ${formatToken(amountOut, 18, ethIn ? 4 : 6)} ${outSymbol}.`,
-  )
+  const swapMessage = () =>
+    `Swapped ${formatToken(amountIn, 18, ethIn ? 6 : 4)} ${inSymbol} for ≈ ${formatToken(amountOut, 18, ethIn ? 4 : 6)} ${outSymbol}.`
 
   function flip() {
     setDirection(ethIn ? 'vladToEth' : 'ethToVlad')
@@ -181,52 +178,50 @@ export function SwapPanel() {
 
         <div className="mt-5">
           <NetworkGate connectMessage="Connect MetaMask to swap on Sepolia.">
-            <div className="contents" onClickCapture={swapMessage.capture}>
-              {/* ETH → VLAD sends ETH as msg.value: amount 0n means nothing to approve, so the swap button shows directly. */}
-              <ApproveThen
-                spender={addresses.pool}
-                spenderName="the pool"
-                amount={ethIn ? 0n : amountIn}
+            {/* ETH → VLAD sends ETH as msg.value: amount 0n means nothing to approve, so the swap button shows directly. */}
+            <ApproveThen
+              spender={addresses.pool}
+              spenderName="the pool"
+              amount={ethIn ? 0n : amountIn}
+              disabled={!canSwap}
+              stepLabels={['Approve VLAD', 'Swap VLAD for ETH']}
+            >
+              <TxButton
+                key={`swap-${direction}`}
+                request={
+                  ethIn
+                    ? {
+                        address: addresses.pool,
+                        abi: stellarPoolAbi,
+                        functionName: 'swapEthForVlad',
+                        args: [minOut ?? 0n],
+                        value: amountIn,
+                      }
+                    : {
+                        address: addresses.pool,
+                        abi: stellarPoolAbi,
+                        functionName: 'swapVladForEth',
+                        args: [amountIn, minOut ?? 0n],
+                      }
+                }
                 disabled={!canSwap}
-                stepLabels={['Approve VLAD', 'Swap VLAD for ETH']}
+                errorMessages={LP_ERRORS}
+                onConfirmed={(hash) => {
+                  setLastSwap(hash)
+                  setAmount('')
+                }}
+                successMessage={swapMessage}
+                className="h-12 w-full text-base"
               >
-                <TxButton
-                  key={`swap-${direction}`}
-                  request={
-                    ethIn
-                      ? {
-                          address: addresses.pool,
-                          abi: stellarPoolAbi,
-                          functionName: 'swapEthForVlad',
-                          args: [minOut ?? 0n],
-                          value: amountIn,
-                        }
-                      : {
-                          address: addresses.pool,
-                          abi: stellarPoolAbi,
-                          functionName: 'swapVladForEth',
-                          args: [amountIn, minOut ?? 0n],
-                        }
-                  }
-                  disabled={!canSwap}
-                  errorMessages={LP_ERRORS}
-                  onConfirmed={(hash) => {
-                    setLastSwap(hash)
-                    setAmount('')
-                  }}
-                  successMessage={swapMessage.message}
-                  className="h-12 w-full text-base"
-                >
-                  {!DEPLOYED
-                    ? 'Pool not deployed yet'
-                    : amountIn === 0n
-                      ? 'Enter an amount'
-                      : exceeds
-                        ? `Insufficient ${inSymbol}`
-                        : `Swap ${inSymbol} for ${outSymbol}`}
-                </TxButton>
-              </ApproveThen>
-            </div>
+                {!DEPLOYED
+                  ? 'Pool not deployed yet'
+                  : amountIn === 0n
+                    ? 'Enter an amount'
+                    : exceeds
+                      ? `Insufficient ${inSymbol}`
+                      : `Swap ${inSymbol} for ${outSymbol}`}
+              </TxButton>
+            </ApproveThen>
           </NetworkGate>
         </div>
 

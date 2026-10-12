@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatUnits, multicall3Abi, parseUnits, zeroAddress } from 'viem'
 import { useBalance, useConnection, useReadContracts } from 'wagmi'
 import { iVladTokenAbi, stellarFarmAbi, stellarPoolAbi } from '../abi'
@@ -189,25 +189,4 @@ export function useTicker(intervalMs = 100): number {
     return () => clearInterval(id)
   }, [intervalMs])
   return now
-}
-
-/**
- * Success-toast text frozen at the moment of the click.
- *
- * TxButton builds its "Transaction confirmed" toast when the receipt arrives, from the props it has then.
- * The wallet reads here refetch every 8 s and wagmi polls for the receipt every 8 s, so the refetch often
- * lands first and already shows the state after the transaction (pending rewards back to ~0, a quote moved
- * by the trade itself). To report what was actually sent:
- * 1. wrap the TxButton in `<div className="contents" onClickCapture={capture}>`: `contents` keeps the
- *    wrapper out of the layout, and the capture phase runs `build()` before TxButton's own onClick;
- * 2. pass `message` as `successMessage`: TxButton calls it at receipt time and gets the text from the click.
- */
-export function useMessageAtClick(build: () => string) {
-  const atClick = useRef('')
-  return {
-    capture: () => {
-      atClick.current = build()
-    },
-    message: () => atClick.current,
-  }
 }
