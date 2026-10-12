@@ -142,18 +142,6 @@ export function Details({ children }: { children: ReactNode }) {
   return <div className="divide-y divide-border/60 rounded-2xl border border-border/80 bg-surface/40 px-4 py-1.5">{children}</div>
 }
 
-/** "Step 1 of 2 · Approve VLAD" label above a transaction button. */
-export function StepLabel({ step, total, children }: { step: number; total: number; children: ReactNode }) {
-  return (
-    <p className="mb-2 flex items-center gap-2 text-xs text-muted">
-      <span className="rounded-md border border-border bg-surface-2/70 px-1.5 py-0.5 font-mono text-[0.65rem] text-accent-2">
-        {step}/{total}
-      </span>
-      {children}
-    </p>
-  )
-}
-
 /**
  * Info bubble. Opens on mouse hover, keyboard focus or tap. The bubble is positioned against the nearest
  * `relative` ancestor and spans its full width, so place it inside a `relative` container. Position the button

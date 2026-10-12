@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useReadContract } from 'wagmi'
-import { iVladTokenAbi, stellarPoolAbi } from '../abi'
+import { stellarPoolAbi } from '../abi'
 import { addresses } from '../config/addresses'
+import { ApproveThen } from '../shell/ApproveThen'
 import { formatToken } from '../shell/format'
 import { NetworkGate } from '../shell/NetworkGate'
 import { StatTile } from '../shell/StatTile'
@@ -23,11 +24,12 @@ import {
   toFloat,
   toInputString,
   useDebounced,
+  useMessageAtClick,
   usePoolState,
   useSettled,
   useUserState,
 } from './lib'
-import { AmountField, DetailRow, Details, Note, StepLabel } from './ui'
+import { AmountField, DetailRow, Details, Note } from './ui'
 
 type Mode = 'add' | 'remove'
 const MODES = [
@@ -164,20 +166,21 @@ function AddLiquidity() {
   const ethMax = user.ethBalance === undefined ? undefined : user.ethBalance > GAS_RESERVE ? user.ethBalance - GAS_RESERVE : 0n
   const rawEthExceeds = user.ethBalance !== undefined && ethIn > user.ethBalance
   const rawVladExceeds = user.vladBalance !== undefined && vladNeeded !== undefined && vladNeeded > user.vladBalance
-  const rawNeedsApproval = maxVlad !== undefined && maxVlad > 0n && (user.vladAllowance ?? 0n) < maxVlad
-  const settled = useSettled(
-    `${ethText}:${vladText}`,
-    ethIn > 0n && !!vladNeeded && !rawEthExceeds && !rawVladExceeds && !rawNeedsApproval,
-  )
+  const settled = useSettled(`${ethText}:${vladText}`, ethIn > 0n && !!vladNeeded && !rawEthExceeds && !rawVladExceeds)
   const ethExceeds = rawEthExceeds && !settled
   const vladExceeds = rawVladExceeds && !settled
-  const needsApproval = rawNeedsApproval && !settled
   const newSupply = p.lpSupply !== undefined && lpOut !== undefined ? p.lpSupply + lpOut + (empty ? MINIMUM_LIQUIDITY : 0n) : undefined
   const shareAfter = lpOut !== undefined && newSupply ? pct(lpOut, newSupply) : undefined
   const openingPrice = empty && ethIn > 0n && firstVlad > 0n ? toFloat(firstVlad) / toFloat(ethIn) : undefined
 
   const ready =
     DEPLOYED && ethIn > 0n && !!vladNeeded && vladNeeded > 0n && !!lpOut && lpOut > 0n && !ethExceeds && !vladExceeds
+  // First deposit: both amounts are exact. Later deposits: the VLAD side and the sLP come from the quote.
+  const approx = empty ? '' : '≈ '
+  const addMessage = useMessageAtClick(
+    () =>
+      `Added ${formatToken(ethIn, 18, 6)} ETH + ${approx}${formatToken(vladNeeded, 18, 4)} VLAD of liquidity; you received ${approx}${formatToken(lpOut, 18, 6)} sLP.`,
+  )
 
   return (
     <div className="space-y-4">
@@ -237,33 +240,15 @@ function AddLiquidity() {
       </Details>
 
       <NetworkGate connectMessage="Connect MetaMask to provide liquidity.">
-        {needsApproval ? (
-          <div>
-            <StepLabel step={1} total={2}>
-              Allow the pool to take up to {formatToken(maxVlad, 18, 4)} VLAD
-            </StepLabel>
-            <TxButton
-              key="approve"
-              request={{
-                address: addresses.vladToken,
-                abi: iVladTokenAbi,
-                functionName: 'approve',
-                args: [addresses.pool, maxVlad],
-              }}
-              disabled={!ready}
-              errorMessages={LP_ERRORS}
-              className="h-12 w-full"
-            >
-              Approve VLAD
-            </TxButton>
-          </div>
-        ) : (
-          <div>
-            {ready ? (
-              <StepLabel step={2} total={2}>
-                Allowance ready · deposit
-              </StepLabel>
-            ) : null}
+        <div className="contents" onClickCapture={addMessage.capture}>
+          {/* Approves maxVlad (quote + 0.5%); addLiquidity pulls only the VLAD it needs. */}
+          <ApproveThen
+            spender={addresses.pool}
+            spenderName="the pool"
+            amount={maxVlad ?? 0n}
+            disabled={!ready}
+            stepLabels={['Approve VLAD', 'Add liquidity']}
+          >
             <TxButton
               key="add"
               request={{
@@ -279,12 +264,13 @@ function AddLiquidity() {
                 setEthText('')
                 setVladText('')
               }}
+              successMessage={addMessage.message}
               className="h-12 w-full text-base"
             >
               {!DEPLOYED ? 'Pool not deployed yet' : ethIn === 0n ? 'Enter an ETH amount' : 'Add liquidity'}
             </TxButton>
-          </div>
-        )}
+          </ApproveThen>
+        </div>
       </NetworkGate>
     </div>
   )
@@ -305,6 +291,10 @@ function RemoveLiquidity() {
   const minEth = ethOut !== undefined ? applySlippage(ethOut, LIQUIDITY_SLIPPAGE_BPS) : undefined
   const minVlad = vladOut !== undefined ? applySlippage(vladOut, LIQUIDITY_SLIPPAGE_BPS) : undefined
   const ready = DEPLOYED && lp > 0n && !exceeds && !!ethOut && !!vladOut
+  const removeMessage = useMessageAtClick(
+    () =>
+      `Removed ${formatToken(lp, 18, 6)} sLP; you received ≈ ${formatToken(ethOut, 18, 6)} ETH + ≈ ${formatToken(vladOut, 18, 4)} VLAD.`,
+  )
 
   return (
     <div className="space-y-4">
@@ -333,20 +323,24 @@ function RemoveLiquidity() {
       </Details>
 
       <NetworkGate connectMessage="Connect MetaMask to remove liquidity.">
-        <TxButton
-          request={{
-            address: addresses.pool,
-            abi: stellarPoolAbi,
-            functionName: 'removeLiquidity',
-            args: [lp, minEth ?? 0n, minVlad ?? 0n],
-          }}
-          disabled={!ready}
-          errorMessages={LP_ERRORS}
-          onConfirmed={() => setLpText('')}
-          className="h-12 w-full text-base"
-        >
-          {!DEPLOYED ? 'Pool not deployed yet' : lp === 0n ? 'Enter an sLP amount' : 'Remove liquidity'}
-        </TxButton>
+        {/* removeLiquidity burns the caller's own sLP inside the pool: no approval. */}
+        <div className="contents" onClickCapture={removeMessage.capture}>
+          <TxButton
+            request={{
+              address: addresses.pool,
+              abi: stellarPoolAbi,
+              functionName: 'removeLiquidity',
+              args: [lp, minEth ?? 0n, minVlad ?? 0n],
+            }}
+            disabled={!ready}
+            errorMessages={LP_ERRORS}
+            onConfirmed={() => setLpText('')}
+            successMessage={removeMessage.message}
+            className="h-12 w-full text-base"
+          >
+            {!DEPLOYED ? 'Pool not deployed yet' : lp === 0n ? 'Enter an sLP amount' : 'Remove liquidity'}
+          </TxButton>
+        </div>
       </NetworkGate>
     </div>
   )

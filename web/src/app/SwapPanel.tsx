@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { parseEventLogs, type Hash } from 'viem'
 import { useTransactionReceipt } from 'wagmi'
-import { iVladTokenAbi, stellarPoolAbi } from '../abi'
+import { stellarPoolAbi } from '../abi'
 import { CHAIN_ID, addresses } from '../config/addresses'
 import { formatToken } from '../shell/format'
+import { ApproveThen } from '../shell/ApproveThen'
 import { CheckIcon } from '../shell/icons'
 import { NetworkGate } from '../shell/NetworkGate'
 import { Tabs } from '../shell/Tabs'
@@ -22,10 +23,11 @@ import {
   toFloat,
   toInputString,
   usePoolState,
+  useMessageAtClick,
   useSettled,
   useUserState,
 } from './lib'
-import { AmountField, DetailRow, Details, Note, StepLabel, TokenIcon, type TokenSymbol } from './ui'
+import { AmountField, DetailRow, Details, Note, TokenIcon, type TokenSymbol } from './ui'
 
 type Direction = 'ethToVlad' | 'vladToEth'
 
@@ -73,13 +75,16 @@ export function SwapPanel() {
     hasReserves && amountIn > 0n ? Number((inAfterFee * 1_000_000n) / (reserveIn + inAfterFee)) / 10_000 : undefined
   const execRate = amountIn > 0n && amountOut ? toFloat(amountOut) / toFloat(amountIn) : undefined
   const fee = (amountIn * FEE_BPS) / 10_000n
-  const rawNeedsApproval = !ethIn && amountIn > 0n && (user.vladAllowance ?? 0n) < amountIn
-  const settled = useSettled(`${direction}:${amount}`, amountIn > 0n && !rawExceeds && !rawNeedsApproval)
+  const settled = useSettled(`${direction}:${amount}`, amountIn > 0n && !rawExceeds)
   const exceeds = rawExceeds && !settled
-  const needsApproval = rawNeedsApproval && !settled
 
   const canSwap = DEPLOYED && hasReserves && amountIn > 0n && !!amountOut && amountOut > 0n && !exceeds
   const impactTone = impact === undefined ? undefined : impact >= 15 ? 'danger' : impact >= 5 ? 'warn' : undefined
+  // ETH amounts with 6 decimals, VLAD amounts with 4.
+  const swapMessage = useMessageAtClick(
+    () =>
+      `Swapped ${formatToken(amountIn, 18, ethIn ? 6 : 4)} ${inSymbol} for ≈ ${formatToken(amountOut, 18, ethIn ? 4 : 6)} ${outSymbol}.`,
+  )
 
   function flip() {
     setDirection(ethIn ? 'vladToEth' : 'ethToVlad')
@@ -176,33 +181,15 @@ export function SwapPanel() {
 
         <div className="mt-5">
           <NetworkGate connectMessage="Connect MetaMask to swap on Sepolia.">
-            {needsApproval ? (
-              <div>
-                <StepLabel step={1} total={2}>
-                  Allow the pool to take {formatToken(amountIn, 18, 4)} VLAD
-                </StepLabel>
-                <TxButton
-                  key="approve"
-                  request={{
-                    address: addresses.vladToken,
-                    abi: iVladTokenAbi,
-                    functionName: 'approve',
-                    args: [addresses.pool, amountIn],
-                  }}
-                  disabled={!canSwap}
-                  errorMessages={LP_ERRORS}
-                  className="h-12 w-full"
-                >
-                  Approve VLAD
-                </TxButton>
-              </div>
-            ) : (
-              <div>
-                {!ethIn && amountIn > 0n ? (
-                  <StepLabel step={2} total={2}>
-                    Allowance ready · swap
-                  </StepLabel>
-                ) : null}
+            <div className="contents" onClickCapture={swapMessage.capture}>
+              {/* ETH → VLAD sends ETH as msg.value: amount 0n means nothing to approve, so the swap button shows directly. */}
+              <ApproveThen
+                spender={addresses.pool}
+                spenderName="the pool"
+                amount={ethIn ? 0n : amountIn}
+                disabled={!canSwap}
+                stepLabels={['Approve VLAD', 'Swap VLAD for ETH']}
+              >
                 <TxButton
                   key={`swap-${direction}`}
                   request={
@@ -227,6 +214,7 @@ export function SwapPanel() {
                     setLastSwap(hash)
                     setAmount('')
                   }}
+                  successMessage={swapMessage.message}
                   className="h-12 w-full text-base"
                 >
                   {!DEPLOYED
@@ -237,8 +225,8 @@ export function SwapPanel() {
                         ? `Insufficient ${inSymbol}`
                         : `Swap ${inSymbol} for ${outSymbol}`}
                 </TxButton>
-              </div>
-            )}
+              </ApproveThen>
+            </div>
           </NetworkGate>
         </div>
 

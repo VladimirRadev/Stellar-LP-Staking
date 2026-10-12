@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatUnits, multicall3Abi, parseUnits, zeroAddress } from 'viem'
 import { useBalance, useConnection, useReadContracts } from 'wagmi'
 import { iVladTokenAbi, stellarFarmAbi, stellarPoolAbi } from '../abi'
@@ -141,9 +141,7 @@ export function useUserState() {
   const query = useReadContracts({
     contracts: [
       { ...vladContract, functionName: 'balanceOf', args: [account] },
-      { ...vladContract, functionName: 'allowance', args: [account, addresses.pool] },
       { ...poolContract, functionName: 'balanceOf', args: [account] },
-      { ...poolContract, functionName: 'allowance', args: [account, addresses.farm] },
       { ...farmContract, functionName: 'userInfo', args: [account] },
       { ...farmContract, functionName: 'pendingReward', args: [account] },
       { ...multicall, functionName: 'getCurrentBlockTimestamp' },
@@ -155,12 +153,10 @@ export function useUserState() {
     address,
     ethBalance: address ? eth.data?.value : undefined,
     vladBalance: data?.[0]?.result,
-    vladAllowance: data?.[1]?.result,
-    lpBalance: data?.[2]?.result,
-    lpAllowance: data?.[3]?.result,
-    staked: data?.[4]?.result?.[0],
-    pending: data?.[5]?.result,
-    blockTimestamp: data?.[6]?.result,
+    lpBalance: data?.[1]?.result,
+    staked: data?.[2]?.result?.[0],
+    pending: data?.[3]?.result,
+    blockTimestamp: data?.[4]?.result,
     isLoading: enabled && query.isLoading,
   }
 }
@@ -177,8 +173,7 @@ export function useDebounced<T>(value: T, delayMs = 300): T {
 
 /**
  * True once `ok` has been true for this exact `input`, until the input changes. Without it, a refetch that lands
- * while a transaction is still being mined (balance or allowance already spent) would flip the form back to
- * "Approve" or "exceeds balance" and unmount the pending TxButton before it sees the receipt.
+ * while a transaction is still being mined (balance already spent) would flip the form to "exceeds balance".
  */
 export function useSettled(input: string, ok: boolean): boolean {
   const [okFor, setOkFor] = useState<string>()
@@ -194,4 +189,25 @@ export function useTicker(intervalMs = 100): number {
     return () => clearInterval(id)
   }, [intervalMs])
   return now
+}
+
+/**
+ * Success-toast text frozen at the moment of the click.
+ *
+ * TxButton builds its "Transaction confirmed" toast when the receipt arrives, from the props it has then.
+ * The wallet reads here refetch every 8 s and wagmi polls for the receipt every 8 s, so the refetch often
+ * lands first and already shows the state after the transaction (pending rewards back to ~0, a quote moved
+ * by the trade itself). To report what was actually sent:
+ * 1. wrap the TxButton in `<div className="contents" onClickCapture={capture}>`: `contents` keeps the
+ *    wrapper out of the layout, and the capture phase runs `build()` before TxButton's own onClick;
+ * 2. pass `message` as `successMessage`: TxButton calls it at receipt time and gets the text from the click.
+ */
+export function useMessageAtClick(build: () => string) {
+  const atClick = useRef('')
+  return {
+    capture: () => {
+      atClick.current = build()
+    },
+    message: () => atClick.current,
+  }
 }

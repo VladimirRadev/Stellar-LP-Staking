@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { stellarFarmAbi, stellarPoolAbi } from '../abi'
+import { stellarFarmAbi } from '../abi'
 import { useConnection } from 'wagmi'
 import { CHAIN_ID, addresses } from '../config/addresses'
+import { ApproveThen } from '../shell/ApproveThen'
 import { formatToken } from '../shell/format'
 import { ArrowIcon } from '../shell/icons'
 import { NetworkGate } from '../shell/NetworkGate'
@@ -16,12 +17,13 @@ import {
   formatPct,
   parseAmount,
   pct,
+  useMessageAtClick,
   useSettled,
   useTicker,
   usePoolState,
   useUserState,
 } from './lib'
-import { AmountField, InfoTip, Note, StepLabel } from './ui'
+import { AmountField, InfoTip, Note } from './ui'
 
 type Mode = 'deposit' | 'withdraw'
 const MODES = [
@@ -30,9 +32,15 @@ const MODES = [
 ] as const satisfies readonly { key: Mode; label: string }[]
 
 /**
- * Pending rewards between refetches: the on-chain value at the block's timestamp, plus this wallet's share of
- * `rewardPerSecond` for every millisecond since that block. Re-rendered 10 times per second.
+ * Pending rewards at `nowMs`: the on-chain value at the block's timestamp, plus this wallet's share of
+ * `rewardPerSecond` for every millisecond since that block (capped at 120 s, in case the reads stall).
  */
+function estimatePending(pending: bigint, blockTimestamp: bigint | undefined, perSecond: bigint, nowMs: number): bigint {
+  const elapsedMs = blockTimestamp ? Math.min(Math.max(0, nowMs - Number(blockTimestamp) * 1000), 120_000) : 0
+  return pending + (perSecond * BigInt(Math.floor(elapsedMs))) / 1000n
+}
+
+/** Pending rewards between refetches (see estimatePending). Re-rendered 10 times per second. */
 function LivePending({
   pending,
   blockTimestamp,
@@ -46,8 +54,7 @@ function LivePending({
 }) {
   const now = useTicker(100)
   if (pending === undefined) return <>—</>
-  const elapsedMs = blockTimestamp ? Math.min(Math.max(0, now - Number(blockTimestamp) * 1000), 120_000) : 0
-  return <>{formatToken(pending + (perSecond * BigInt(Math.floor(elapsedMs))) / 1000n, 18, digits)}</>
+  return <>{formatToken(estimatePending(pending, blockTimestamp, perSecond, now), 18, digits)}</>
 }
 
 export function FarmPanel({ onGoToPool }: { onGoToPool: () => void }) {
@@ -69,6 +76,10 @@ export function FarmPanel({ onGoToPool }: { onGoToPool: () => void }) {
     p.lpSupply && p.reserveVlad !== undefined ? (2n * p.reserveVlad * totalStaked) / p.lpSupply : undefined
   const apr =
     stakedValueVlad && stakedValueVlad > 0n ? Number((rate * SECONDS_PER_YEAR * 10_000n) / stakedValueVlad) / 100 : undefined
+  const harvestMessage = useMessageAtClick(
+    () =>
+      `Harvested ≈ ${formatToken(estimatePending(user.pending ?? 0n, user.blockTimestamp, myPerSecond, Date.now()), 18, 4)} VLAD.`,
+  )
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -177,14 +188,17 @@ export function FarmPanel({ onGoToPool }: { onGoToPool: () => void }) {
           {/* The deposit/withdraw form above already shows the connect or switch-network prompt. */}
           {onSepolia ? (
             <div className="mt-3">
-              <TxButton
-                request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'harvest' }}
-                disabled={!DEPLOYED || !user.pending || user.pending === 0n}
-                errorMessages={LP_ERRORS}
-                className="h-12 w-full"
-              >
-                Harvest VLAD
-              </TxButton>
+              <div className="contents" onClickCapture={harvestMessage.capture}>
+                <TxButton
+                  request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'harvest' }}
+                  disabled={!DEPLOYED || !user.pending || user.pending === 0n}
+                  errorMessages={LP_ERRORS}
+                  successMessage={harvestMessage.message}
+                  className="h-12 w-full"
+                >
+                  Harvest VLAD
+                </TxButton>
+              </div>
               <EmergencyWithdraw staked={staked} pending={user.pending} />
             </div>
           ) : null}
@@ -199,12 +213,13 @@ function Deposit({ onGoToPool }: { onGoToPool: () => void }) {
   const [text, setText] = useState('')
   const amount = parseAmount(text) ?? 0n
   const rawExceeds = user.lpBalance !== undefined && amount > user.lpBalance
-  const rawNeedsApproval = amount > 0n && (user.lpAllowance ?? 0n) < amount
-  const settled = useSettled(text, amount > 0n && !rawExceeds && !rawNeedsApproval)
+  const settled = useSettled(text, amount > 0n && !rawExceeds)
   const exceeds = rawExceeds && !settled
-  const needsApproval = rawNeedsApproval && !settled
   const ready = DEPLOYED && amount > 0n && !exceeds
   const noLp = !!user.address && user.lpBalance === 0n
+  const depositMessage = useMessageAtClick(
+    () => `Staked ${formatToken(amount, 18, 6)} sLP in the farm.${paidOut(user.pending)}`,
+  )
 
   return (
     <div className="space-y-4">
@@ -228,45 +243,29 @@ function Deposit({ onGoToPool }: { onGoToPool: () => void }) {
         </Note>
       ) : null}
       <NetworkGate connectMessage="Connect MetaMask to stake sLP.">
-        {needsApproval ? (
-          <div>
-            <StepLabel step={1} total={2}>
-              Allow the farm to take {formatToken(amount, 18, 4)} sLP
-            </StepLabel>
-            <TxButton
-              key="approve"
-              request={{
-                address: addresses.pool,
-                abi: stellarPoolAbi,
-                functionName: 'approve',
-                args: [addresses.farm, amount],
-              }}
-              disabled={!ready}
-              errorMessages={LP_ERRORS}
-              className="h-12 w-full"
-            >
-              Approve sLP
-            </TxButton>
-          </div>
-        ) : (
-          <div>
-            {ready ? (
-              <StepLabel step={2} total={2}>
-                Allowance ready · stake
-              </StepLabel>
-            ) : null}
+        <div className="contents" onClickCapture={depositMessage.capture}>
+          <ApproveThen
+            token={addresses.pool}
+            tokenSymbol="sLP"
+            spender={addresses.farm}
+            spenderName="the farm"
+            amount={amount}
+            disabled={!ready}
+            stepLabels={['Approve sLP', 'Deposit sLP']}
+          >
             <TxButton
               key="deposit"
               request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'deposit', args: [amount] }}
               disabled={!ready}
               errorMessages={LP_ERRORS}
               onConfirmed={() => setText('')}
+              successMessage={depositMessage.message}
               className="h-12 w-full text-base"
             >
               {!DEPLOYED ? 'Farm not deployed yet' : amount === 0n ? 'Enter an sLP amount' : 'Deposit sLP'}
             </TxButton>
-          </div>
-        )}
+          </ApproveThen>
+        </div>
       </NetworkGate>
     </div>
   )
@@ -281,6 +280,9 @@ function Withdraw() {
   const settled = useSettled(text, amount > 0n && !rawExceeds)
   const exceeds = rawExceeds && !settled
   const ready = DEPLOYED && amount > 0n && !exceeds
+  const withdrawMessage = useMessageAtClick(
+    () => `Withdrew ${formatToken(amount, 18, 6)} sLP from the farm.${paidOut(user.pending)}`,
+  )
 
   return (
     <div className="space-y-4">
@@ -296,15 +298,18 @@ function Withdraw() {
         hint="Withdrawing also pays out any pending rewards."
       />
       <NetworkGate connectMessage="Connect MetaMask to unstake sLP.">
-        <TxButton
-          request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'withdraw', args: [amount] }}
-          disabled={!ready}
-          errorMessages={LP_ERRORS}
-          onConfirmed={() => setText('')}
-          className="h-12 w-full text-base"
-        >
-          {!DEPLOYED ? 'Farm not deployed yet' : amount === 0n ? 'Enter an sLP amount' : 'Withdraw sLP'}
-        </TxButton>
+        <div className="contents" onClickCapture={withdrawMessage.capture}>
+          <TxButton
+            request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'withdraw', args: [amount] }}
+            disabled={!ready}
+            errorMessages={LP_ERRORS}
+            onConfirmed={() => setText('')}
+            successMessage={withdrawMessage.message}
+            className="h-12 w-full text-base"
+          >
+            {!DEPLOYED ? 'Farm not deployed yet' : amount === 0n ? 'Enter an sLP amount' : 'Withdraw sLP'}
+          </TxButton>
+        </div>
       </NetworkGate>
     </div>
   )
@@ -314,6 +319,10 @@ function Withdraw() {
 function EmergencyWithdraw({ staked, pending }: { staked: bigint; pending: bigint | undefined }) {
   const [open, setOpen] = useState(false)
   const [understood, setUnderstood] = useState(false)
+  const emergencyMessage = useMessageAtClick(
+    () =>
+      `Withdrew ${formatToken(staked, 18, 6)} sLP from the farm and forfeited ${pending !== undefined ? `≈ ${formatToken(pending, 18, 4)} VLAD of` : 'all'} pending rewards.`,
+  )
 
   if (!open) {
     return (
@@ -346,7 +355,7 @@ function EmergencyWithdraw({ staked, pending }: { staked: bigint; pending: bigin
         I understand that my pending rewards are lost.
       </label>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-        <div className="sm:flex-1">
+        <div className="sm:flex-1" onClickCapture={emergencyMessage.capture}>
           <TxButton
             request={{ address: addresses.farm, abi: stellarFarmAbi, functionName: 'emergencyWithdraw' }}
             disabled={!DEPLOYED || !understood || staked === 0n}
@@ -355,6 +364,7 @@ function EmergencyWithdraw({ staked, pending }: { staked: bigint; pending: bigin
               setOpen(false)
               setUnderstood(false)
             }}
+            successMessage={emergencyMessage.message}
             className="w-full bg-none bg-danger text-bg shadow-none hover:shadow-none"
           >
             Withdraw and forfeit rewards
@@ -373,4 +383,9 @@ function EmergencyWithdraw({ staked, pending }: { staked: bigint; pending: bigin
       </div>
     </div>
   )
+}
+
+/** " Your ≈ N VLAD of pending rewards were paid out too." (deposit and withdraw both harvest first), or "". */
+function paidOut(pending: bigint | undefined): string {
+  return pending && pending > 0n ? ` Your ≈ ${formatToken(pending, 18, 4)} VLAD of pending rewards were paid out too.` : ''
 }
