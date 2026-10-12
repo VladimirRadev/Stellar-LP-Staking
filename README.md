@@ -84,7 +84,7 @@ pending            = user.amount * accRewardPerShare / ACC - user.rewardDebt
 **Live:** https://vladimirradev.github.io/Stellar-LP-Staking/
 
 A React 19 + wagmi 3 + viem single-page app in `web/`, built on the shared Stellar scaffold
-(`web/src/shell/` is byte-identical across the six Stellar repos). MetaMask only, Sepolia only, no backend.
+(`web/src/shell/` is byte-identical across the seven Stellar repos). MetaMask only, Sepolia only, no backend.
 
 | Tab | What it does |
 |---|---|
@@ -177,6 +177,7 @@ End-to-end run on Ethereum Sepolia on 2026-10-09 from the deployer `0xEb0243ea72
 | Store | [Stellar-Store](https://github.com/VladimirRadev/Stellar-Store) | https://vladimirradev.github.io/Stellar-Store/ |
 | Arena + Arcade | [Stellar-Arena](https://github.com/VladimirRadev/Stellar-Arena) | https://vladimirradev.github.io/Stellar-Arena/ |
 | Stellargon (prediction market) | [Stellargon](https://github.com/VladimirRadev/Stellargon) | https://vladimirradev.github.io/Stellargon/ |
+| CV (Vladimir Radev) | [Stellar-CV](https://github.com/VladimirRadev/Stellar-CV) | https://vladimirradev.github.io/Stellar-CV/ |
 
 Stellar is a personal portfolio brand, unrelated to the Stellar (XLM) network.
 
